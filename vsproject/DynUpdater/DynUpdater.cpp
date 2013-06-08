@@ -7,6 +7,8 @@ namespace
 	MyApp theApp;
 }
 
+WindowsApp<MyApp>::LookupMap WindowsApp<MyApp>::lookup;
+
 TCHAR MyApp::ApplicationToolTip[64] = TEXT("Xenonym\nDynamic DNS");
 TCHAR MyApp::ApplicationClassName[] = L"Xenonym::DDNS";
 TCHAR MyApp::ApplicationTitle[] = L"Xenonym Dynamic Domain Name Setup";

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tuple>
+
 #define ID_TRAY_APP_ICON    1001
 #define ID_TRAY_EXIT        1002
 
@@ -7,10 +9,14 @@
 
 template<typename Manager> class WindowsApp
 {
+public:
+	typedef std::map<HWND,Manager> LookupMap;
+
 private:
-	static HWND wnd;
-	static HMENU menu;
-	static NOTIFYICONDATA notifyIconData;
+	static LookupMap lookup;
+
+	HMENU menu;
+	NOTIFYICONDATA notifyIconData;
 
 	/// register the windows application class struct
 	static bool registerApplicationWindowsClass(HINSTANCE hThisInstance)
@@ -33,7 +39,7 @@ private:
 		return !!RegisterClassEx (&winclz);
 	}
 
-	static void initNotifyIconData()
+	void initNotifyIconData(HWND wnd)
 	{
 		memset( &notifyIconData, 0, sizeof( NOTIFYICONDATA ) ) ;
 
@@ -44,6 +50,7 @@ private:
 		notifyIconData.uCallbackMessage = APPICONMSG; //Set up our invented Windows Message
 		notifyIconData.hIcon = (HICON)LoadIcon( GetModuleHandle(NULL), MAKEINTRESOURCE(Manager::appIconId()) );
 		_tcsncpy_s(notifyIconData.szTip, Manager::ApplicationToolTip, sizeof(Manager::ApplicationToolTip));
+        Shell_NotifyIcon(NIM_ADD, &notifyIconData);
 	}
 
 public:
@@ -56,28 +63,48 @@ public:
 		{
 			return false;
 		}
-		wnd = CreateWindowEx ( 0
+		HWND wnd = CreateWindowEx ( 0
 		                      , Manager::ApplicationClassName
 							  , Manager::ApplicationTitle
 							  , WS_OVERLAPPEDWINDOW
 							  , CW_USEDEFAULT
 							  , CW_USEDEFAULT
-							  , 544          // width
-							  , 375          // height
+							  , Manager::WIDTH
+							  , Manager::HEIGHT
 							  , HWND_DESKTOP
 							  , NULL
 							  , hThisInstance
 							  , NULL
 							  );
-		initNotifyIconData();
-        Shell_NotifyIcon(NIM_ADD, &notifyIconData);
+		Manager & data = lookup[wnd];
+		data.initNotifyIconData(wnd);
+		data.createMenu();
 		/* Make the window visible on the screen */
 	    ShowWindow (wnd, nCmdShow);
 		return true;
 	}
 
+	void createMenu()
+	{
+        menu = CreatePopupMenu();
+		Manager::initialiseMenu(menu);
+	}
 
-static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+	static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		LookupMap::iterator i = lookup.find(hwnd);
+		if ( i != lookup.end() )
+		{
+			return (i->second).processMessage(hwnd, message, wParam, lParam );
+		}
+		// we will not have an object bound to the
+		if ( message == WM_CREATE )
+		{
+		}
+	    return DefWindowProc( hwnd, message, wParam, lParam );
+	}
+
+	LRESULT processMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)                  /* handle the messages */
     {
@@ -85,9 +112,7 @@ static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, 
         break;
 
 	case WM_CREATE:
-        ShowWindow(wnd, SW_HIDE);
-        menu = CreatePopupMenu();
-		Manager::initialiseMenu(menu);
+        ShowWindow(hwnd, SW_HIDE);
         break;
 
     case WM_SYSCOMMAND:
@@ -99,7 +124,7 @@ static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, 
         {
         case SC_MINIMIZE:
         case SC_CLOSE:  
-	        ShowWindow(wnd, SW_HIDE);
+	        ShowWindow(hwnd, SW_HIDE);
             return 0;
         }
         break;
@@ -112,7 +137,7 @@ static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, 
         switch(wParam)
         {
         case ID_TRAY_APP_ICON:
-			SetForegroundWindow(wnd);
+			SetForegroundWindow(hwnd);
             break;
         }
 
@@ -120,13 +145,13 @@ static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, 
         switch(lParam)
         {
 		case WM_LBUTTONUP:
-			ShowWindow(wnd, SW_SHOW);
+			ShowWindow(hwnd, SW_SHOW);
 			break;
 		case WM_RBUTTONDOWN:
             // Get current mouse position.
             POINT curPoint ;
             GetCursorPos( &curPoint ) ;
-			SetForegroundWindow(wnd);
+			SetForegroundWindow(hwnd);
 
             // TrackPopupMenu blocks the app until TrackPopupMenu returns
 
@@ -151,7 +176,7 @@ static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, 
 		}
 
     case WM_CLOSE:
-        ShowWindow(wnd, SW_HIDE);
+        ShowWindow(hwnd, SW_HIDE);
         return 0;
 
     case WM_DESTROY:
@@ -167,6 +192,4 @@ static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, 
 
 };
 
-template<typename T> HWND WindowsApp<T>::wnd;
-template<typename T> HMENU WindowsApp<T>::menu;
-template<typename T> NOTIFYICONDATA WindowsApp<T>::notifyIconData;
+// template<typename T> WindowsApp<T>::LookupMap WindowsApp<T>::lookup;

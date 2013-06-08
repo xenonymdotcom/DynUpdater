@@ -13,6 +13,8 @@ public:
 	{
 		AppendMenu(menu, MF_STRING, ID_TRAY_EXIT,  TEXT( "Exit The Demo" ) );
 	}
+	static int const WIDTH = 480;
+	static int const HEIGHT = 300;
 };
 
 
