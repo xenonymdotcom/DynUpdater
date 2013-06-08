@@ -1,15 +1,11 @@
 #include "stdafx.h"
+
 #include "DynUpdater.h"
-#include "windows.h"
 
 namespace
 {
 	MyApp theApp;
 }
-
-HWND WindowsApp<MyApp>::wnd;
-HMENU WindowsApp<MyApp>::menu;
-NOTIFYICONDATA WindowsApp<MyApp>::notifyIconData;
 
 TCHAR MyApp::ApplicationToolTip[64] = TEXT("Xenonym\nDynamic DNS");
 TCHAR MyApp::ApplicationClassName[] = L"Xenonym::DDNS";
