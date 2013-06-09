@@ -1,39 +1,32 @@
 #include "stdafx.h"
-
+#include "resource.h"
 #include "DynUpdater.h"
 
-namespace
-{
-	MyApp theApp;
+#define REFRESHMSG (WM_USER + 2)
+
+TCHAR DynUpdater::ApplicationToolTip[64] = TEXT("Xenonym\nDynamic DNS");
+TCHAR DynUpdater::ApplicationClassName[] = L"Xenonym::DDNS";
+TCHAR DynUpdater::ApplicationTitle[] = L"Xenonym Dynamic Domain Name Setup";
+
+// static func to get the app icon.
+WORD DynUpdater::appIconId() 
+{ 
+	return IDI_DYNUPDATER;
 }
 
-WindowsApp<MyApp>::LookupMap WindowsApp<MyApp>::lookup;
-
-TCHAR MyApp::ApplicationToolTip[64] = TEXT("Xenonym\nDynamic DNS");
-TCHAR MyApp::ApplicationClassName[] = L"Xenonym::DDNS";
-TCHAR MyApp::ApplicationTitle[] = L"Xenonym Dynamic Domain Name Setup";
-
-int WINAPI WinMain (HINSTANCE hThisInstance,
-                    HINSTANCE hPrevInstance,
-                    LPSTR lpszArgument,
-                    int nCmdShow)
+void DynUpdater::initialiseMenu(HMENU menu)
 {
-	// initialise the app
-	if ( !theApp.appMain(hThisInstance, nCmdShow) )
+	AppendMenu(menu, MF_STRING, REFRESHMSG,  TEXT( "Refresh now" ) );
+}
+
+void DynUpdater::processMenu(HMENU menu, HWND hwnd, UINT clicked )
+{
+	switch( clicked )
 	{
-		return 0;
+	case REFRESHMSG:
+		//
+		break;
 	}
-
-	MSG messages;
-
-	// while there are messages to process
-	while (GetMessage (&messages, NULL, 0, 0))
-    {
-        // transalate the virt key
-        TranslateMessage(&messages);
-        // send the message to the correct winproc
-        DispatchMessage(&messages);
-    }
-
-    return messages.wParam;
 }
+
+

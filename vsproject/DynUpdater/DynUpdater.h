@@ -1,20 +1,19 @@
 #include "WindowsApp.h"
 
-#include "resource.h"
 
-class MyApp : public WindowsApp<MyApp>
+class DynUpdater : public WindowsApp<DynUpdater>
 {
 public:
 	static TCHAR ApplicationToolTip[64];
 	static TCHAR ApplicationClassName[];
 	static TCHAR ApplicationTitle[];
-	static WORD appIconId() { return IDI_DYNUPDATER; }
-	static void initialiseMenu(HMENU menu)
-	{
-		AppendMenu(menu, MF_STRING, ID_TRAY_EXIT,  TEXT( "Exit The Demo" ) );
-	}
+	static WORD appIconId();
+
 	static int const WIDTH = 480;
 	static int const HEIGHT = 300;
+protected:
+	virtual void initialiseMenu(HMENU menu);
+	virtual void processMenu(HMENU menu, HWND hwnd, UINT clicked );
 };
 
 

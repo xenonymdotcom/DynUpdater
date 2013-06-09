@@ -1,7 +1,5 @@
 #pragma once
 
-#include <tuple>
-
 #define ID_TRAY_APP_ICON    1001
 #define ID_TRAY_EXIT        1002
 
@@ -24,17 +22,16 @@ private:
 		WNDCLASSEX winclz;
 		winclz.hInstance = hThisInstance;
 		winclz.lpszClassName = Manager::ApplicationClassName;
-		winclz.lpfnWndProc = windowsCallback;      /* This function is called by windows */
-		winclz.style = CS_DBLCLKS;                 /* Catch double-clicks */
+		winclz.lpfnWndProc = windowsCallback;
+		winclz.style = CS_DBLCLKS;
 		winclz.cbSize = sizeof (WNDCLASSEX);
 
-		/* Use default icon and mouse-pointer */
-		winclz.hIcon = LoadIcon (GetModuleHandle(NULL), MAKEINTRESOURCE(Manager::appIconId()));
-		winclz.hIconSm = LoadIcon (GetModuleHandle(NULL), MAKEINTRESOURCE(Manager::appIconId()));
-		winclz.hCursor = LoadCursor (NULL, IDC_ARROW);
-		winclz.lpszMenuName = NULL;                 /* No menu */
-		winclz.cbClsExtra = 0;                      /* No extra bytes after the window class */
-		winclz.cbWndExtra = 0;                      /* structure or the window instance */
+		winclz.hIcon = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(Manager::appIconId()));
+		winclz.hIconSm = LoadIcon(GetModuleHandle(0), MAKEINTRESOURCE(Manager::appIconId()));
+		winclz.hCursor = LoadCursor(0, IDC_ARROW);
+		winclz.lpszMenuName = 0;
+		winclz.cbClsExtra = 0;
+		winclz.cbWndExtra = 0;
 		winclz.hbrBackground = (HBRUSH)(CreateSolidBrush(RGB(255, 255, 255)));
 		return !!RegisterClassEx (&winclz);
 	}
@@ -48,12 +45,121 @@ private:
 		notifyIconData.uID = ID_TRAY_APP_ICON;
 		notifyIconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 		notifyIconData.uCallbackMessage = APPICONMSG; //Set up our invented Windows Message
-		notifyIconData.hIcon = (HICON)LoadIcon( GetModuleHandle(NULL), MAKEINTRESOURCE(Manager::appIconId()) );
+		notifyIconData.hIcon = (HICON)LoadIcon( GetModuleHandle(0), MAKEINTRESOURCE(Manager::appIconId()) );
 		_tcsncpy_s(notifyIconData.szTip, Manager::ApplicationToolTip, sizeof(Manager::ApplicationToolTip));
         Shell_NotifyIcon(NIM_ADD, &notifyIconData);
 	}
 
+	void createMenu()
+	{
+        menu = CreatePopupMenu();
+		initialiseMenu(menu);
+		// add and exit option at the end
+		AppendMenu(menu, MF_SEPARATOR, 0, 0 );
+		AppendMenu(menu, MF_STRING, ID_TRAY_EXIT,  TEXT( "Exit" ) );
+	}
+
+	static LRESULT handleNCHitTest(HWND hwnd, WPARAM wParam, LPARAM lParam)
+	{
+		LRESULT result = DefWindowProc(hwnd, WM_NCHITTEST, wParam, lParam);
+		return (result == HTCLIENT) ? HTCAPTION : result;
+	}
+
+	static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		LookupMap::iterator i = lookup.find(hwnd);
+		if ( i != lookup.end() )
+		{
+			return (i->second).processMessage(hwnd, message, wParam, lParam );
+		}
+	    return DefWindowProc( hwnd, message, wParam, lParam );
+	}
+
+	void processOurMessage(HWND hwnd, WPARAM wParam, LPARAM lParam)
+	{
+        switch(wParam)
+        {
+        case ID_TRAY_APP_ICON:
+			SetForegroundWindow(hwnd);
+            break;
+        }
+
+        switch(lParam)
+        {
+		case WM_LBUTTONUP:
+			ShowWindow(hwnd, SW_SHOW);
+			break;
+		case WM_RBUTTONDOWN:
+            POINT curPoint ;
+            GetCursorPos( &curPoint );
+			SetForegroundWindow(hwnd);
+
+			// this will block until the we get an answer
+            UINT clicked = TrackPopupMenu( menu,TPM_RETURNCMD | TPM_NONOTIFY,curPoint.x,curPoint.y,0,hwnd,0);
+
+            if (clicked == ID_TRAY_EXIT)
+            {
+                // quit the application.
+                Shell_NotifyIcon(NIM_DELETE, &notifyIconData);
+                PostQuitMessage( 0 );
+            }
+			else
+			{
+				processMenu( menu, hwnd, clicked );
+			}
+        }
+	}
+
+	LRESULT processMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		switch (message)
+		{
+		case WM_SYSCOMMAND:
+			// the bottom 4 bits are used internally (mask them out)		
+			switch( wParam & 0xFFF0 )  
+			{
+			case SC_MINIMIZE:
+			case SC_CLOSE:  
+				ShowWindow(hwnd, SW_HIDE);
+				return 0;
+			}
+			break;
+
+
+			// Our user defined message.
+		case APPICONMSG:
+			processOurMessage(hwnd, wParam, lParam);
+			return 0;
+
+			// intercept the hittest message..
+		case WM_NCHITTEST:
+			return handleNCHitTest(hwnd, wParam, lParam );
+
+		case WM_CLOSE:
+			ShowWindow(hwnd, SW_HIDE);
+			return 0;
+
+		case WM_DESTROY:
+			PostQuitMessage (0);
+			break;
+
+		case WM_QUIT:
+			break;
+		}
+
+		return DefWindowProc( hwnd, message, wParam, lParam );
+	}
+
+protected:
+	// methods that sub classes are expected to reimplement
+	
+	// add user items to the menu.
+	virtual void initialiseMenu(HMENU menu){}
+	// process the actions we added
+	virtual void processMenu(HMENU menu, HWND hwnd, UINT clicked ){}
+
 public:
+	// public interface (just this entry point)
 	static bool appMain( HINSTANCE hThisInstance
 					  , int nCmdShow
 					  )
@@ -72,124 +178,18 @@ public:
 							  , Manager::WIDTH
 							  , Manager::HEIGHT
 							  , HWND_DESKTOP
-							  , NULL
+							  , 0
 							  , hThisInstance
-							  , NULL
+							  , 0
 							  );
 		Manager & data = lookup[wnd];
 		data.initNotifyIconData(wnd);
 		data.createMenu();
-		/* Make the window visible on the screen */
+
+		// show the window we just created.
 	    ShowWindow (wnd, nCmdShow);
 		return true;
 	}
-
-	void createMenu()
-	{
-        menu = CreatePopupMenu();
-		Manager::initialiseMenu(menu);
-	}
-
-	static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		LookupMap::iterator i = lookup.find(hwnd);
-		if ( i != lookup.end() )
-		{
-			return (i->second).processMessage(hwnd, message, wParam, lParam );
-		}
-		// we will not have an object bound to the
-		if ( message == WM_CREATE )
-		{
-		}
-	    return DefWindowProc( hwnd, message, wParam, lParam );
-	}
-
-	LRESULT processMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message)                  /* handle the messages */
-    {
-    case WM_ACTIVATE:
-        break;
-
-	case WM_CREATE:
-        ShowWindow(hwnd, SW_HIDE);
-        break;
-
-    case WM_SYSCOMMAND:
-        /*In WM_SYSCOMMAND messages, the four low-order bits of the wParam parameter 
-		are used internally by the system. To obtain the correct result when testing the value of wParam, 
-		an application must combine the value 0xFFF0 with the wParam value by using the bitwise AND operator.*/ 
-		
-		switch( wParam & 0xFFF0 )  
-        {
-        case SC_MINIMIZE:
-        case SC_CLOSE:  
-	        ShowWindow(hwnd, SW_HIDE);
-            return 0;
-        }
-        break;
-
-        
-	// Our user defined message.
-    case APPICONMSG:
-    {
-
-        switch(wParam)
-        {
-        case ID_TRAY_APP_ICON:
-			SetForegroundWindow(hwnd);
-            break;
-        }
-
-
-        switch(lParam)
-        {
-		case WM_LBUTTONUP:
-			ShowWindow(hwnd, SW_SHOW);
-			break;
-		case WM_RBUTTONDOWN:
-            // Get current mouse position.
-            POINT curPoint ;
-            GetCursorPos( &curPoint ) ;
-			SetForegroundWindow(hwnd);
-
-            // TrackPopupMenu blocks the app until TrackPopupMenu returns
-
-            UINT clicked = TrackPopupMenu(menu,TPM_RETURNCMD | TPM_NONOTIFY,curPoint.x,curPoint.y,0,hwnd,NULL);
-
-            SendMessage(hwnd, WM_NULL, 0, 0); // send benign message to window to make sure the menu goes away.
-            if (clicked == ID_TRAY_EXIT)
-            {
-                // quit the application.
-                Shell_NotifyIcon(NIM_DELETE, &notifyIconData);
-                PostQuitMessage( 0 );
-            }
-        }
-    }
-    break;
-
-    // intercept the hittest message..
-    case WM_NCHITTEST:
-		{
-		LRESULT result = DefWindowProc(hwnd, WM_NCHITTEST, wParam, lParam);
-		return (result == HTCLIENT) ? HTCAPTION : result;
-		}
-
-    case WM_CLOSE:
-        ShowWindow(hwnd, SW_HIDE);
-        return 0;
-
-    case WM_DESTROY:
-        PostQuitMessage (0);
-        break;
-
-    case WM_QUIT:
-		break;
-    }
-
-    return DefWindowProc( hwnd, message, wParam, lParam );
-}
-
 };
 
-// template<typename T> WindowsApp<T>::LookupMap WindowsApp<T>::lookup;
+template<typename T> std::map<HWND,T> WindowsApp<T>::lookup;
