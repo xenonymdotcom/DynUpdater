@@ -1,18 +1,10 @@
 #pragma once
 
-#define ID_TRAY_APP_ICON    1001
-#define ID_TRAY_EXIT        1002
+#include "WindowsCtrl.h"
 
-#define APPICONMSG          (WM_USER + 1)
-
-template<typename Manager> class WindowsApp
+template<typename Manager> class WindowsApp : public WindowsCtrl
 {
-public:
-	typedef std::map<HWND,Manager> LookupMap;
-
 private:
-	static LookupMap lookup;
-
 	HMENU menu;
 	NOTIFYICONDATA notifyIconData;
 
@@ -22,7 +14,7 @@ private:
 		WNDCLASSEX winclz;
 		winclz.hInstance = hThisInstance;
 		winclz.lpszClassName = Manager::ApplicationClassName;
-		winclz.lpfnWndProc = windowsCallback;
+		winclz.lpfnWndProc = WindowsCtrl::windowsCallback;
 		winclz.style = CS_DBLCLKS;
 		winclz.cbSize = sizeof (WNDCLASSEX);
 
@@ -58,21 +50,16 @@ private:
 		AppendMenu(menu, MF_SEPARATOR, 0, 0 );
 		AppendMenu(menu, MF_STRING, ID_TRAY_EXIT,  TEXT( "Exit" ) );
 	}
+	
+	void createControls(HWND wnd, HINSTANCE thisInstance)
+	{
+		initialiseControls(wnd,thisInstance);
+	}
 
 	static LRESULT handleNCHitTest(HWND hwnd, WPARAM wParam, LPARAM lParam)
 	{
 		LRESULT result = DefWindowProc(hwnd, WM_NCHITTEST, wParam, lParam);
 		return (result == HTCLIENT) ? HTCAPTION : result;
-	}
-
-	static LRESULT CALLBACK windowsCallback(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		LookupMap::iterator i = lookup.find(hwnd);
-		if ( i != lookup.end() )
-		{
-			return (i->second).processMessage(hwnd, message, wParam, lParam );
-		}
-	    return DefWindowProc( hwnd, message, wParam, lParam );
 	}
 
 	void processOurMessage(HWND hwnd, WPARAM wParam, LPARAM lParam)
@@ -110,8 +97,10 @@ private:
         }
 	}
 
-	LRESULT processMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+protected:
+	virtual LRESULT processMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
+		OutputDebugString(L"App processed msg\n");
 		switch (message)
 		{
 		case WM_SYSCOMMAND:
@@ -149,15 +138,15 @@ private:
 
 		return DefWindowProc( hwnd, message, wParam, lParam );
 	}
-
-protected:
-	// methods that sub classes are expected to reimplement
 	
 	// add user items to the menu.
 	virtual void initialiseMenu(HMENU menu){}
 	// process the actions we added
 	virtual void processMenu(HMENU menu, HWND hwnd, UINT clicked ){}
 
+	// add user controls
+	virtual void initialiseControls(HWND wnd, HINSTANCE thisInstance){}
+	
 public:
 	// public interface (just this entry point)
 	static bool appMain( HINSTANCE hThisInstance
@@ -182,14 +171,12 @@ public:
 							  , hThisInstance
 							  , 0
 							  );
-		Manager & data = lookup[wnd];
-		data.initNotifyIconData(wnd);
-		data.createMenu();
-
+		std::shared_ptr<Manager> p = WindowsCtrl::createControl<Manager>(wnd);		
+		p->initNotifyIconData(wnd);
+		p->createMenu();
+		p->createControls(wnd, hThisInstance);
 		// show the window we just created.
 	    ShowWindow (wnd, nCmdShow);
 		return true;
 	}
 };
-
-template<typename T> std::map<HWND,T> WindowsApp<T>::lookup;

@@ -33,6 +33,12 @@
     <ClInclude Include="WindowsApp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PreDefinedClasses.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsCtrl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -42,6 +48,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsCtrl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PreDefinedClasses.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
